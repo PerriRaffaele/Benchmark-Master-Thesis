@@ -68,13 +68,12 @@ if __name__ == '__main__':
                 print("No check(candidate) function found in test code; using full test code.")
         else:
             test_code = task['test']
-        code = output + "\n" + test_code
+        code = f"{task['prompt']}\n{output}\n{test_code}\ncheck({task['entry_point']})\n"
         print(f"Tests to run:\n{test_code}\n")
         execution_env = {}
         try:
             exec(task['prompt'], execution_env)
-            exec(output, execution_env)
-            exec(test_code, execution_env)
+            exec(code, execution_env)
             correct += 1
         except Exception as e:
             print(f"Error executing code for task {task['task_id']}: {e}")
