@@ -2,6 +2,8 @@ import re
 from litellm import completion
 from datasets import load_dataset
 import subprocess
+import tempfile
+import os
 
 def parse_code_block(string: str) -> str:
     """
@@ -77,6 +79,11 @@ if __name__ == '__main__':
             test_code = task['test']
         code = f"{task['prompt']}\n{output}\n{test_code}\ncheck({task['entry_point']})\n"
         print(f"Tests to run:\n{test_code}\n")
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as temp_script:
+            temp_script.write(code)
+            temp_script_path = os.path.abspath(temp_script.name)
+
         try:
             result = subprocess.run(
                 [
@@ -84,8 +91,9 @@ if __name__ == '__main__':
                     "--rm", "-i",
                     "--net", "none",
                     "--memory", "256m",
+                    "-v", f"{temp_script_path}:/app/script.py:ro", # :ro for read-only
                     "python:3.10-slim",
-                    "python", "-"
+                    "python", "/app/script.py"
                 ],
                 input=code,
                 text=True,  # String input
@@ -106,6 +114,9 @@ if __name__ == '__main__':
             print("  Code took too long, likely an infinite loop")
         except Exception as e:
             print(f"  Error: ({e})")
+        finally:
+            if os.path.exists(temp_script_path):
+                os.remove(temp_script_path)
 
     accuracy = correct / total
     print(f"Final Accuracy: {accuracy:.2%}")
